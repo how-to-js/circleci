@@ -1,0 +1,71 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: circleci/node:17.2.0
+    steps:
+      - checkout
+      - run:
+          name: "install"
+          command: "npm install"
+      - run:
+          name: "build"
+          command: "npm run build"
+      - run:
+          name: "where I am?"
+          command: "pwd"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist
+
+  test:
+    docker:
+      - image: circleci/node:17.2.0-browsers
+    steps:
+      - checkout
+      - run:
+          name: "install"
+          command: "npm install"
+      - run:
+          name: "test"
+          command: "npm run test:ci"
+
+  deploy:
+    docker:
+      - image: circleci/node:17.2.0
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install and configure dependencies
+          command: |
+            npm install gh-pages@3.2.3
+            git config user.email "ci-build@how-to.dev"
+            git config user.name "ci-build"
+      - add_ssh_keys:
+          fingerprints:
+            - "b6:07:cb:89:21:cf:58:29:85:d7:b6:78:2e:97:d2:c0"
+      - run:
+          name: Deploy docs to gh-pages branch
+          command: ./node_modules/.bin/gh-pages --dist dist
+
+workflows:
+  main:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore:  gh-pages
+      - test:
+          filters:
+            branches:
+              ignore:  gh-pages
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: main
